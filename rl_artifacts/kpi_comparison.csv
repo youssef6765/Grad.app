@@ -1,0 +1,7 @@
+scope,policy,steps,fill_rate,total_lost_sales,avg_end_on_hand,avg_order_qty,sum_reward_env,sum_reward_raw
+train,RL (best ckpt),715,0.6287,15450.84,127.51,37.22,51104.47,151404.13
+train,"Reorder-point (s,S)",715,0.7031,12356.06,91.56,40.91,85483.26,203076.2
+train,Historical replay,715,0.4756,21820.11,44.28,27.22,50450.13,70615.32
+test,RL (best ckpt),175,0.2986,13079.04,63.68,31.23,-4295.43,-15033.76
+test,"Reorder-point (s,S)",175,0.3913,11350.35,89.22,41.86,9713.4,9417.68
+test,Historical replay,175,0.271,13593.64,41.4,27.33,7640.18,-21816.0

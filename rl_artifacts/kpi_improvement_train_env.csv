@@ -1,0 +1,8 @@
+metric,rl_minus_baseline
+fill_rate,-0.013686719034842754
+total_lost_sales,837.8440511319735
+avg_end_on_hand,-48788.690895925014
+sum_reward_env,8756339.53950808
+sum_reward_raw,8756339.53950808
+sum_reward_clipped,4233275.1683470905
+avg_order_qty,-16.61179087875417
