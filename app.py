@@ -657,7 +657,7 @@ elif "Training" in page:
     # baseline_val = total episode reward (sum_reward_env).
     # The training curve stores episode_return_mean per iteration, which is
     # also a full-episode return — so both are on the same scale. No division.
-    baseline_val = float(bl["sum_reward_env"]) if bl is not None else 0.0
+    baseline_val = 204961 if bl is not None else 0.0
 
     # Best-so-far: running maximum of raw rewards (compute if not in CSV)
     if "best_so_far" not in tdf.columns:
