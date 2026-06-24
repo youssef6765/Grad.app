@@ -917,8 +917,12 @@ elif "Test" in page:
 
     df_f.loc[mask, "sum_reward_env"] = 204961
 
+    test_sub  = df_f[df_f["scope"]=="test_env"].copy()
+    train_sub = df_f[df_f["scope"]=="train_env"].copy()
+
     if test_sub.empty:
-        st.warning("No test-env rows found in final_report.csv."); st.stop()
+        st.warning("No test-env rows found in final_report.csv.")
+        st.stop()
 
     # Generalisation bar: train vs test reward
     st.markdown('<div class="sec-hdr" style="font-size:1rem">Reward — Train vs Test</div>',
