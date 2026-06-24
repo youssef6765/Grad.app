@@ -747,7 +747,11 @@ elif "KPI" in page:
 
     df_f.loc[mask, "sum_reward_env"] = 204961
 
-    scope = st.selectbox(...)
+    scope = st.selectbox(
+    "Environment Scope",
+    ["train_env", "test_env"],
+    format_func=lambda x: "🏋️ Train Env" if x=="train_env" else "🧪 Test Env"
+    )
     sub = df_f[df_f["scope"]==scope].copy()
 
     # Colour map
