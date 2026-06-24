@@ -654,43 +654,40 @@ elif "Training" in page:
     df_f = data["final"]
     bl, rl, _ = policy_rows(df_f, "train_env")
 
-    # ── Baseline value: mean reward per episode (sum ÷ steps), not the raw sum ──
-    # bl["sum_reward_env"] is the total reward over the whole eval episode.
-    # The training curve shows mean reward per iteration, so we must divide
-    # by the number of steps so both are on the same scale.
-    if bl is not None:
-        bl_steps = float(bl["steps"]) if "steps" in bl.index and float(bl["steps"]) > 0 else 1.0
-        baseline_val = float(bl["sum_reward_env"]) / bl_steps
-    else:
-        baseline_val = 0.0
+    # baseline_val = total episode reward (sum_reward_env).
+    # The training curve stores episode_return_mean per iteration, which is
+    # also a full-episode return — so both are on the same scale. No division.
+    baseline_val = float(bl["sum_reward_env"]) if bl is not None else 0.0
 
-    # Best-so-far (running maximum) — compute if not already in CSV
+    # Best-so-far: running maximum of raw rewards (compute if not in CSV)
     if "best_so_far" not in tdf.columns:
-        tdf["best_so_far"] = np.maximum.accumulate(tdf["reward"])
+        tdf["best_so_far"] = np.maximum.accumulate(
+            np.nan_to_num(tdf["reward"].values, nan=-np.inf)
+        )
 
     fig = go.Figure()
 
-    # Raw noisy reward — thin line + small markers (shows real training variance)
+    # 1. Raw noisy reward — thin line + small markers (shows real variance)
     fig.add_trace(go.Scatter(
         x=tdf["iteration"], y=tdf["reward"],
         mode="lines+markers",
-        name="Mean Reward / Iter",
+        name="RL train mean reward / iteration",
         line=dict(color=C_RL, width=1),
         marker=dict(size=3, color=C_RL),
-        opacity=0.55,
+        opacity=0.75,
     ))
 
-    # Best-so-far — dashed orange, only goes up (shows convergence clearly)
+    # 2. Best-so-far — dashed, only goes up (makes convergence obvious)
     fig.add_trace(go.Scatter(
         x=tdf["iteration"], y=tdf["best_so_far"],
-        mode="lines", name="Best So Far",
+        mode="lines", name="RL best-so-far",
         line=dict(color="#f59e0b", width=2.5, dash="dash"),
     ))
 
-    # Baseline — bold solid red horizontal line (correct per-step scale)
+    # 3. Baseline — bold solid red line (correct episode-return scale)
     fig.add_hline(
         y=baseline_val,
-        line=dict(color=C_BASE, width=2.5),          # solid, not dashed
+        line=dict(color=C_BASE, width=2.5),
         annotation_text=f"Baseline = {baseline_val:,.0f}",
         annotation_font_color=C_BASE,
         annotation_position="bottom right",
@@ -699,7 +696,7 @@ elif "Training" in page:
     apply_theme(fig, "PPO Training Reward vs Baseline")
     fig.update_layout(height=500,
                       xaxis_title="Training Iteration",
-                      yaxis_title="Mean Reward / Iteration")
+                      yaxis_title="Episode Return (mean)")
     st.plotly_chart(fig, use_container_width=True)
 
     # Best-iter summary
@@ -1025,24 +1022,12 @@ elif "Pilot" in page:
     st.markdown('<div class="sec-hdr" style="font-size:1rem">Full Recommendation Table</div>',
                 unsafe_allow_html=True)
     fmt_map = {c: "{:.0f}" for c in pdf.columns if c != "t_step"}
-
-    # background_gradient requires matplotlib (unavailable on Streamlit Cloud).
-    # Use a pure-CSS colour scale instead — no extra dependency needed.
-    grad_col = "RL Order (Raw)" if "RL Order (Raw)" in pdf.columns else None
-    if grad_col:
-        col_min = pdf[grad_col].min()
-        col_max = pdf[grad_col].max()
-        def _blue_scale(val):
-            if pd.isna(val) or col_max == col_min:
-                return ""
-            ratio = (val - col_min) / (col_max - col_min)
-            intensity = int(40 + ratio * 160)
-            return f"background-color: rgba(0,{intensity},255,0.25)"
-        styled = pdf.style.format(fmt_map).map(_blue_scale, subset=[grad_col])
-    else:
-        styled = pdf.style.format(fmt_map)
-
-    st.dataframe(styled, use_container_width=True, height=440)
+    st.dataframe(
+        pdf.style.format(fmt_map)
+           .background_gradient(subset=["RL Order (Raw)"] if "RL Order (Raw)" in pdf.columns else [],
+                                cmap="Blues"),
+        use_container_width=True, height=440
+    )
 
     # Download
     csv_bytes = pdf.to_csv(index=False).encode()
