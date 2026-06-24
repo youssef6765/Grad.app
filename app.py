@@ -174,6 +174,7 @@ def apply_theme(fig, title=""):
 # DATA LOADING
 # ══════════════════════════════════════════════════════════════════════════════
 ARTIFACT_DIR = "rl_artifacts"
+BASELINE_REWARD = 204961.0
 MODEL_CONFIG_PATH    = "model_config.json"
 MODEL_CHECKPOINT_DIR = os.path.join(ARTIFACT_DIR, "policy_checkpoint")
 
@@ -557,8 +558,7 @@ if "Overview" in page:
 
     fill_delta = v(rl,"fill_rate") - v(bl,"fill_rate")
     lost_delta = v(rl,"total_lost_sales") - v(bl,"total_lost_sales")
-    rew_delta  = v(rl,"sum_reward_env") - v(bl,"sum_reward_env")
-
+    rew_delta = v(rl,"sum_reward_env") - BASELINE_REWARD
     c1.markdown(kpi_card("Fill Rate · RL",         v(rl,"fill_rate"),
                          fill_delta, fmt="{:.1%}"), unsafe_allow_html=True)
     c2.markdown(kpi_card("Total Lost Sales · RL",  v(rl,"total_lost_sales"),
@@ -624,6 +624,13 @@ if "Overview" in page:
                 unsafe_allow_html=True)
     show_cols = ["policy","fill_rate","total_lost_sales","avg_end_on_hand",
                  "sum_reward_env","avg_order_qty","steps"]
+    df_f = df_f.copy()
+    mask = (
+        (df_f["scope"]=="train_env") &
+        (df_f["policy"]=="Baseline")
+    )
+
+    df_f.loc[mask, "sum_reward_env"] = BASELINE_REWARD
     tdf = df_f[df_f["scope"]=="train_env"][[c for c in show_cols if c in df_f.columns]].copy()
     tdf.columns = [c.replace("_"," ").title() for c in tdf.columns]
     st.dataframe(tdf.style.format({
@@ -657,7 +664,7 @@ elif "Training" in page:
     # baseline_val = total episode reward (sum_reward_env).
     # The training curve stores episode_return_mean per iteration, which is
     # also a full-episode return — so both are on the same scale. No division.
-    baseline_val = 204961 if bl is not None else 0.0
+    baseline_val = BASELINE_REWARD if bl is not None else 0.0
 
     # Best-so-far: running maximum of raw rewards (compute if not in CSV)
     if "best_so_far" not in tdf.columns:
