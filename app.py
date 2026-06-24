@@ -653,43 +653,53 @@ elif "Training" in page:
     tdf = data["train_df"]
     df_f = data["final"]
     bl, rl, _ = policy_rows(df_f, "train_env")
-    baseline_val = float(bl["sum_reward_env"]) if bl is not None else 0.0
 
-    # Smoothed trace
-    window = max(1, len(tdf)//30)
-    tdf["smoothed"] = tdf["reward"].rolling(window, min_periods=1, center=True).mean()
+    # ── Baseline value: mean reward per episode (sum ÷ steps), not the raw sum ──
+    # bl["sum_reward_env"] is the total reward over the whole eval episode.
+    # The training curve shows mean reward per iteration, so we must divide
+    # by the number of steps so both are on the same scale.
+    if bl is not None:
+        bl_steps = float(bl["steps"]) if "steps" in bl.index and float(bl["steps"]) > 0 else 1.0
+        baseline_val = float(bl["sum_reward_env"]) / bl_steps
+    else:
+        baseline_val = 0.0
+
+    # Best-so-far (running maximum) — compute if not already in CSV
+    if "best_so_far" not in tdf.columns:
+        tdf["best_so_far"] = np.maximum.accumulate(tdf["reward"])
 
     fig = go.Figure()
 
-    # Raw reward
+    # Raw noisy reward — thin line + small markers (shows real training variance)
     fig.add_trace(go.Scatter(
         x=tdf["iteration"], y=tdf["reward"],
-        mode="lines", name="Mean Reward / Iter",
-        line=dict(color=C_RL, width=1), opacity=0.4,
+        mode="lines+markers",
+        name="Mean Reward / Iter",
+        line=dict(color=C_RL, width=1),
+        marker=dict(size=3, color=C_RL),
+        opacity=0.55,
     ))
-    # Smoothed
+
+    # Best-so-far — dashed orange, only goes up (shows convergence clearly)
     fig.add_trace(go.Scatter(
-        x=tdf["iteration"], y=tdf["smoothed"],
-        mode="lines", name=f"Smoothed (w={window})",
-        line=dict(color=C_RL, width=2.5),
+        x=tdf["iteration"], y=tdf["best_so_far"],
+        mode="lines", name="Best So Far",
+        line=dict(color="#f59e0b", width=2.5, dash="dash"),
     ))
-    # Best-so-far
-    if "best_so_far" in tdf.columns:
-        fig.add_trace(go.Scatter(
-            x=tdf["iteration"], y=tdf["best_so_far"],
-            mode="lines", name="Best So Far",
-            line=dict(color=C_ACCENT, width=2, dash="dot"),
-        ))
-    # Baseline
-    fig.add_hline(y=baseline_val, line_color=C_BASE, line_width=2,
-                  line_dash="dash",
-                  annotation_text=f"Baseline reward = {baseline_val:,.0f}",
-                  annotation_font_color=C_BASE)
+
+    # Baseline — bold solid red horizontal line (correct per-step scale)
+    fig.add_hline(
+        y=baseline_val,
+        line=dict(color=C_BASE, width=2.5),          # solid, not dashed
+        annotation_text=f"Baseline = {baseline_val:,.0f}",
+        annotation_font_color=C_BASE,
+        annotation_position="bottom right",
+    )
 
     apply_theme(fig, "PPO Training Reward vs Baseline")
     fig.update_layout(height=500,
                       xaxis_title="Training Iteration",
-                      yaxis_title="Episode Reward")
+                      yaxis_title="Mean Reward / Iteration")
     st.plotly_chart(fig, use_container_width=True)
 
     # Best-iter summary
@@ -708,7 +718,7 @@ elif "Training" in page:
         marker_color=C_RL, opacity=0.75,
         name="Iteration reward",
     ))
-    fig_h.add_vline(x=baseline_val, line_color=C_BASE, line_dash="dash",
+    fig_h.add_vline(x=baseline_val, line_color=C_BASE, line_width=2,
                     annotation_text="Baseline", annotation_font_color=C_BASE)
     apply_theme(fig_h, "Distribution of Per-Iteration Rewards")
     fig_h.update_layout(height=340, xaxis_title="Reward", yaxis_title="Count")
@@ -1015,12 +1025,24 @@ elif "Pilot" in page:
     st.markdown('<div class="sec-hdr" style="font-size:1rem">Full Recommendation Table</div>',
                 unsafe_allow_html=True)
     fmt_map = {c: "{:.0f}" for c in pdf.columns if c != "t_step"}
-    st.dataframe(
-        pdf.style.format(fmt_map)
-           .background_gradient(subset=["RL Order (Raw)"] if "RL Order (Raw)" in pdf.columns else [],
-                                cmap="Blues"),
-        use_container_width=True, height=440
-    )
+
+    # background_gradient requires matplotlib (unavailable on Streamlit Cloud).
+    # Use a pure-CSS colour scale instead — no extra dependency needed.
+    grad_col = "RL Order (Raw)" if "RL Order (Raw)" in pdf.columns else None
+    if grad_col:
+        col_min = pdf[grad_col].min()
+        col_max = pdf[grad_col].max()
+        def _blue_scale(val):
+            if pd.isna(val) or col_max == col_min:
+                return ""
+            ratio = (val - col_min) / (col_max - col_min)
+            intensity = int(40 + ratio * 160)
+            return f"background-color: rgba(0,{intensity},255,0.25)"
+        styled = pdf.style.format(fmt_map).map(_blue_scale, subset=[grad_col])
+    else:
+        styled = pdf.style.format(fmt_map)
+
+    st.dataframe(styled, use_container_width=True, height=440)
 
     # Download
     csv_bytes = pdf.to_csv(index=False).encode()
