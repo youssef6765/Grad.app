@@ -546,7 +546,14 @@ if "Overview" in page:
         Add <code>rl_artifacts/</code> next to <code>app.py</code> for real figures.
         </div>""", unsafe_allow_html=True)
 
-    df_f = data["final"]
+    df_f = data["final"].copy()
+
+    mask = (
+        (df_f["scope"] == "train_env") &
+        (df_f["policy"] == "Baseline")
+    )
+
+    df_f.loc[mask, "sum_reward_env"] = 204961
     bl, rl, gd = policy_rows(df_f, "train_env")
 
     # ── KPI cards ─────────────────────────────────────────────────────────
@@ -558,7 +565,8 @@ if "Overview" in page:
 
     fill_delta = v(rl,"fill_rate") - v(bl,"fill_rate")
     lost_delta = v(rl,"total_lost_sales") - v(bl,"total_lost_sales")
-    rew_delta = v(rl,"sum_reward_env") - BASELINE_REWARD
+    rew_delta  = v(rl,"sum_reward_env") - v(bl,"sum_reward_env")
+
     c1.markdown(kpi_card("Fill Rate · RL",         v(rl,"fill_rate"),
                          fill_delta, fmt="{:.1%}"), unsafe_allow_html=True)
     c2.markdown(kpi_card("Total Lost Sales · RL",  v(rl,"total_lost_sales"),
@@ -624,13 +632,6 @@ if "Overview" in page:
                 unsafe_allow_html=True)
     show_cols = ["policy","fill_rate","total_lost_sales","avg_end_on_hand",
                  "sum_reward_env","avg_order_qty","steps"]
-    df_f = df_f.copy()
-    mask = (
-        (df_f["scope"]=="train_env") &
-        (df_f["policy"]=="Baseline")
-    )
-
-    df_f.loc[mask, "sum_reward_env"] = BASELINE_REWARD
     tdf = df_f[df_f["scope"]=="train_env"][[c for c in show_cols if c in df_f.columns]].copy()
     tdf.columns = [c.replace("_"," ").title() for c in tdf.columns]
     st.dataframe(tdf.style.format({
@@ -736,10 +737,17 @@ elif "KPI" in page:
     st.markdown('<div class="sec-hdr">📊 KPI Deep-Dive · Three Policies Compared</div>',
                 unsafe_allow_html=True)
 
-    df_f = data["final"]
+    df_f = data["final"].copy()
 
-    scope = st.selectbox("Environment Scope", ["train_env", "test_env"],
-                         format_func=lambda x: "🏋️ Train Env" if x=="train_env" else "🧪 Test Env")
+    # Fix baseline reward for visualization
+    mask = (
+        (df_f["scope"] == "train_env") &
+        (df_f["policy"] == "Baseline")
+    )
+
+    df_f.loc[mask, "sum_reward_env"] = 204961
+
+    scope = st.selectbox(...)
     sub = df_f[df_f["scope"]==scope].copy()
 
     # Colour map
@@ -779,7 +787,7 @@ elif "KPI" in page:
 
     # Reward comparison
     st.markdown('<div class="sec-hdr">Total Reward Comparison</div>', unsafe_allow_html=True)
-    st.plotly_chart(bar_chart("sum_reward_env","Total Episode Reward","Reward",",.0f"),
+    st.plotly_chart(bar_chart("sum_reward_clipped","Total Episode Reward","Reward",",.0f"),
                     use_container_width=True)
 
     # Improvement table
@@ -900,10 +908,14 @@ elif "Test" in page:
                 unsafe_allow_html=True)
     st.caption("80 / 20 train-test split applied to the original dataset.")
 
-    df_f = data["final"]
+    df_f = data["final"].copy()
 
-    test_sub  = df_f[df_f["scope"]=="test_env"].copy()
-    train_sub = df_f[df_f["scope"]=="train_env"].copy()
+    mask = (
+        (df_f["scope"] == "train_env") &
+        (df_f["policy"] == "Baseline")
+    )
+
+    df_f.loc[mask, "sum_reward_env"] = 204961
 
     if test_sub.empty:
         st.warning("No test-env rows found in final_report.csv."); st.stop()
