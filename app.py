@@ -779,7 +779,7 @@ elif "KPI" in page:
             v = float(v)
             return "color:#4ade80" if v > 0 else ("color:#f87171" if v < 0 else "")
         st.dataframe(
-            imp2.style.applymap(color_delta, subset=["Rl Minus Baseline"])
+            imp2.style.map(color_delta, subset=["Rl Minus Baseline"])
                       .format({"Rl Minus Baseline": "{:+.3f}"}),
             use_container_width=True
         )

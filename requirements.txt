@@ -5,3 +5,4 @@ plotly
 scipy
 torch
 ray[rllib]
+matplotlib
