@@ -651,7 +651,7 @@ if "Overview" in page:
         "Fill Rate": "{:.2%}",
         "Total Lost Sales": "{:.0f}",
         "Avg End On Hand": "{:.1f}",
-        "Sum Reward Env": "{:,.0f}",
+        "Sum Reward Clipped": "{:,.0f}",
         "Avg Order Qty": "{:.1f}",
         "Steps": "{:.0f}",
     }).highlight_max(subset=["Fill Rate","Sum Reward Env"],
@@ -798,7 +798,7 @@ elif "KPI" in page:
     st.markdown('<div class="sec-hdr">Total Reward Comparison</div>', unsafe_allow_html=True)
     st.plotly_chart(bar_chart("sum_reward_clipped","Total Episode Reward","Reward",",.0f"),
                     use_container_width=True)
-
+    st.caption("ℹ️ Baseline Clipped (train) is fixed at 204,961 — the test value reflects actual performance.")
     # Improvement table
     imp = data["imp"]
     if len(imp) > 0:
@@ -936,9 +936,9 @@ elif "Test" in page:
             col = C_GUARD if "guard" in p.lower() else (C_RL if p=="RL" else C_BASE)
             fig.add_trace(go.Bar(
                 name=f"{p} ({scope})",
-                x=[f"{p} · {scope}"], y=[float(row["sum_reward_env"])],
+                x=[f"{p} · {scope}"], y=[float(row["sum_reward_clipped"])],
                 marker_color=col, opacity=opacity,
-                text=[f"{float(row['sum_reward_env']):,.0f}"],
+                text=[f"{float(row['sum_reward_clipped']):,.0f}"],
                 textposition="outside",
             ))
     apply_theme(fig, "Total Reward — Train vs Test per Policy")
@@ -986,12 +986,12 @@ elif "Test" in page:
     # Full test table
     st.markdown('<div class="sec-hdr" style="font-size:1rem">Test Env — Full KPI Table</div>',
                 unsafe_allow_html=True)
-    show = ["policy","fill_rate","total_lost_sales","avg_end_on_hand","sum_reward_env","avg_order_qty"]
+    show = ["policy","fill_rate","total_lost_sales","avg_end_on_hand","sum_reward_clipped","avg_order_qty"]
     tdf  = test_sub[[c for c in show if c in test_sub.columns]].copy()
     tdf.columns = [c.replace("_"," ").title() for c in tdf.columns]
     st.dataframe(tdf.style.format({
         "Fill Rate": "{:.1%}", "Total Lost Sales": "{:.0f}",
-        "Avg End On Hand": "{:.1f}", "Sum Reward Env": "{:,.0f}",
+        "Avg End On Hand": "{:.1f}", "Sum Reward Clipped": "{:,.0f}",
         "Avg Order Qty": "{:.1f}",
     }).highlight_max(subset=["Fill Rate","Sum Reward Env"], color="rgba(0,212,255,0.20)")
       .highlight_min(subset=["Total Lost Sales"],           color="rgba(105,219,124,0.20)"),
