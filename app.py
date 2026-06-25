@@ -993,9 +993,9 @@ elif "Test" in page:
         "Fill Rate": "{:.1%}", "Total Lost Sales": "{:.0f}",
         "Avg End On Hand": "{:.1f}", "Sum Reward Clipped": "{:,.0f}",
         "Avg Order Qty": "{:.1f}",
-    }).highlight_max(subset=["Fill Rate","Sum Reward Env"], color="rgba(0,212,255,0.20)")
-      .highlight_min(subset=["Total Lost Sales"],           color="rgba(105,219,124,0.20)"),
-      use_container_width=True)
+    }).highlight_max(subset=["Fill Rate","Sum Reward Clipped"], color="rgba(0,212,255,0.20)")
+    .highlight_min(subset=["Total Lost Sales"],               color="rgba(105,219,124,0.20)"),
+    use_container_width=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
