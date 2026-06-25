@@ -175,6 +175,25 @@ def apply_theme(fig, title=""):
 # ══════════════════════════════════════════════════════════════════════════════
 ARTIFACT_DIR = "rl_artifacts"
 BASELINE_REWARD = 204961.0
+def add_clipped_reward(df):
+    """
+    Adds sum_reward_clipped column:
+      - Baseline train_env  → fixed BASELINE_REWARD (204,961)
+      - Baseline test_env   → real sum_reward_env value
+      - RL / RL_guarded     → real sum_reward_env value
+    Also renames 'Baseline' → 'Baseline Clipped' everywhere.
+    """
+    df = df.copy()
+    df["sum_reward_clipped"] = df["sum_reward_env"]
+    mask_train_base = (
+        df["policy"].str.contains("Baseline", case=False) &
+        (df["scope"] == "train_env")
+    )
+    df.loc[mask_train_base, "sum_reward_clipped"] = BASELINE_REWARD
+    df["policy"] = df["policy"].str.replace(
+        r"^Baseline$", "Baseline Clipped", regex=True
+    )
+    return df
 MODEL_CONFIG_PATH    = "model_config.json"
 MODEL_CHECKPOINT_DIR = os.path.join(ARTIFACT_DIR, "policy_checkpoint")
 
@@ -378,7 +397,7 @@ def _gen_sample():
     best_iter = pd.DataFrame([{"best_train_iter": int(np.argmax(train_r))+1,
                                 "best_train_reward": float(np.max(train_r))}])
 
-    return dict(train_df=train_df, final=final, dec=dec, imp=imp,
+    return dict(train_df=train_df, final=add_clipped_reward(final), dec=dec, imp=imp,
                 pilot=pilot, best_iter=best_iter, is_sample=True)
 
 
@@ -415,7 +434,7 @@ def load_data():
 
     return dict(
         train_df  = train_df,
-        final     = final,
+        final     = add_clipped_reward(final),   # ← wrap with add_clipped_reward
         dec       = dec,
         imp       = imp   if imp   is not None else pd.DataFrame(),
         pilot     = pilot if pilot is not None else pd.DataFrame(),
@@ -454,7 +473,7 @@ def kpi_card(label, value, delta=None, delta_label="vs Baseline", fmt="{:.2f}"):
 def policy_rows(df, scope):
     """Return (baseline, rl, guarded) rows for given scope."""
     s = df[df["scope"] == scope]
-    bl = s[s["policy"].str.contains("Baseline", case=False)]
+    bl = s[s["policy"].str.contains("Baseline", case=False)]  # matches "Baseline Clipped"
     rl = s[s["policy"] == "RL"]
     gd = s[s["policy"].str.contains("guarded", case=False)]
     bl = bl.iloc[0] if len(bl) else None
@@ -548,12 +567,6 @@ if "Overview" in page:
 
     df_f = data["final"].copy()
 
-    mask = (
-        (df_f["scope"] == "train_env") &
-        (df_f["policy"] == "Baseline")
-    )
-
-    df_f.loc[mask, "sum_reward_env"] = 204961
     bl, rl, gd = policy_rows(df_f, "train_env")
 
     # ── KPI cards ─────────────────────────────────────────────────────────
@@ -739,14 +752,6 @@ elif "KPI" in page:
 
     df_f = data["final"].copy()
 
-    # Fix baseline reward for visualization
-    mask = (
-        (df_f["scope"] == "train_env") &
-        (df_f["policy"] == "Baseline")
-    )
-
-    df_f.loc[mask, "sum_reward_env"] = 204961
-
     scope = st.selectbox(
     "Environment Scope",
     ["train_env", "test_env"],
@@ -913,13 +918,6 @@ elif "Test" in page:
     st.caption("80 / 20 train-test split applied to the original dataset.")
 
     df_f = data["final"].copy()
-
-    mask = (
-        (df_f["scope"] == "train_env") &
-        (df_f["policy"] == "Baseline")
-    )
-
-    df_f.loc[mask, "sum_reward_env"] = 204961
 
     test_sub  = df_f[df_f["scope"]=="test_env"].copy()
     train_sub = df_f[df_f["scope"]=="train_env"].copy()
